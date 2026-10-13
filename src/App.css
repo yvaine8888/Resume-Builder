@@ -56,6 +56,16 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  max-width: 330px;
+}
+
+.topbar-note.storage-error {
+  color: #9a685d;
+}
+
+.topbar-note.storage-error .save-dot {
+  flex: 0 0 7px;
+  background: #d69d8c;
 }
 
 .save-dot,
@@ -530,6 +540,13 @@
   border-top: 1px solid #e8eef1;
 }
 
+.page-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
 .form-actions p {
   color: #8999a3;
   font-size: 8px;
@@ -553,6 +570,7 @@
   font-size: 10px;
   font-weight: 650;
   cursor: pointer;
+  text-decoration: none;
   transition: background 150ms ease, transform 150ms ease;
 }
 
@@ -563,6 +581,27 @@
 
 .primary-button span {
   font-size: 15px;
+}
+
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid #dfe8ec;
+  border-radius: 5px;
+  background: #fff;
+  color: #6e8797;
+  font-size: 9px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.secondary-button:hover {
+  border-color: #cbdce5;
+  background: #f4f9fb;
 }
 
 .success-message {

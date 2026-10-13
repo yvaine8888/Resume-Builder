@@ -1,0 +1,56 @@
+[
+  {
+    "id": "personal",
+    "path": "/resume/personal",
+    "number": "01",
+    "title": "Personal details",
+    "heading": "Tell us about yourself",
+    "description": "Start with the essentials. The rest is entirely up to you.",
+    "icon": "✳"
+  },
+  {
+    "id": "education",
+    "path": "/resume/education",
+    "number": "02",
+    "title": "Education",
+    "heading": "Your learning journey",
+    "description": "Add schools, degrees, courses, or other learning experiences.",
+    "icon": "▤"
+  },
+  {
+    "id": "experience",
+    "path": "/resume/experience",
+    "number": "03",
+    "title": "Experience",
+    "heading": "Where you’ve made a difference",
+    "description": "Include jobs, internships, freelance work, or volunteer experience.",
+    "icon": "▧"
+  },
+  {
+    "id": "activities",
+    "path": "/resume/activities",
+    "number": "04",
+    "title": "Activities",
+    "heading": "What you do beyond work",
+    "description": "Showcase clubs, organizations, volunteering, and leadership.",
+    "icon": "✣"
+  },
+  {
+    "id": "awards",
+    "path": "/resume/awards",
+    "number": "05",
+    "title": "Awards",
+    "heading": "Your achievements",
+    "description": "Add scholarships, honors, certifications, or other recognition.",
+    "icon": "✧"
+  },
+  {
+    "id": "skills",
+    "path": "/resume/skills",
+    "number": "06",
+    "title": "Skills",
+    "heading": "Your toolkit",
+    "description": "Include tools, languages, and strengths you’d like to highlight.",
+    "icon": "⌘"
+  }
+]
