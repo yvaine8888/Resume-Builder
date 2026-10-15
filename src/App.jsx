@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import sections from './data.json'
 import './App.css'
 
-const STORAGE_KEY = 'forme.resume.v1'
+const STORAGE_KEY = 'forme.resumes.v1'
+const LEGACY_STORAGE_KEY = 'forme.resume.v1'
 
 const initialResume = {
   name: '',
@@ -114,18 +115,50 @@ function normalizeResume(value) {
   }
 }
 
-function readSavedResume() {
+function readSavedResumes() {
   try {
-    const savedResume = window.localStorage.getItem(STORAGE_KEY)
+    const storedResumes = window.localStorage.getItem(STORAGE_KEY)
+    if (storedResumes !== null) {
+      const parsedResumes = JSON.parse(storedResumes)
+      if (!Array.isArray(parsedResumes)) {
+        throw new TypeError('Saved resumes must be a list.')
+      }
+
+      return {
+        resumes: parsedResumes.map((item) => {
+          if (!item || typeof item.id !== 'string' || !item.id || !item.data) {
+            throw new TypeError('A saved resume is missing its ID or data.')
+          }
+          return { id: item.id, data: normalizeResume(item.data) }
+        }),
+        error: '',
+      }
+    }
+
+    const legacyResume = window.localStorage.getItem(LEGACY_STORAGE_KEY)
+    if (legacyResume === null) {
+      return { resumes: [], error: '' }
+    }
+
+    const resumes = [{ id: 'resume-legacy', data: normalizeResume(JSON.parse(legacyResume)) }]
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(resumes))
+    } catch (error) {
+      console.error('Could not migrate the saved resume to the new storage format.', error)
+      return {
+        resumes,
+        error: 'Your saved resume was loaded, but could not be migrated in this browser.',
+      }
+    }
     return {
-      resume: savedResume ? normalizeResume(JSON.parse(savedResume)) : makeInitialResume(),
+      resumes,
       error: '',
     }
   } catch (error) {
-    console.warn('Could not restore the saved resume from this browser.', error)
+    console.warn('Could not restore saved resumes from this browser.', error)
     return {
-      resume: makeInitialResume(),
-      error: 'A saved resume could not be read. Your new changes will still be saved on this device.',
+      resumes: [],
+      error: 'Saved resumes could not be read. Changes may not be saved on this device.',
     }
   }
 }
@@ -249,7 +282,7 @@ function PageActions({ previous, next, onFinish, isLast = false, submit = false 
   )
 }
 
-function PersonalPage({ resume, onChange, onNext }) {
+function PersonalPage({ resume, onChange, onNext, next }) {
   return (
     <form
       className="section-form"
@@ -276,7 +309,7 @@ function PersonalPage({ resume, onChange, onNext }) {
           <p className="privacy-note"><span aria-hidden="true">♧</span> Your contact details are only for your resume.</p>
         </div>
       </section>
-      <PageActions next={sections.find((section) => section.id === 'education')} submit />
+      <PageActions next={next} submit />
     </form>
   )
 }
@@ -334,75 +367,136 @@ function ResumePreview({ resume }) {
   )
 }
 
-function App() {
-  const [savedState] = useState(readSavedResume)
-  const [resume, setResume] = useState(savedState.resume)
-  const [storageError, setStorageError] = useState(savedState.error)
-  const [finishedPath, setFinishedPath] = useState('')
+function ResumeHome({ resumes, storageError, onAdd, onOpen, onRemove }) {
+  return (
+    <div className="home-shell">
+      <header className="topbar">
+        <Link to="/" className="brand" aria-label="Forme home">
+          <span className="brand-mark">f</span>
+          <span>forme<span className="brand-period">.</span></span>
+        </Link>
+        <div className={`topbar-note${storageError ? ' storage-error' : ''}`}>
+          <span className="save-dot" />
+          {storageError || 'Your resumes stay on this device'}
+        </div>
+        <span className="home-top-label">YOUR WORKSPACE</span>
+      </header>
+      <main className="home-main">
+        <div className="home-heading">
+          <div>
+            <span className="sidebar-kicker">YOUR NEXT CHAPTER STARTS HERE</span>
+            <h1>Your resumes<span>.</span></h1>
+            <p>Pick up where you left off, or start with a blank page.</p>
+          </div>
+          <button type="button" className="primary-button home-add-button" onClick={onAdd}>
+            <span aria-hidden="true">+</span> Add a resume
+          </button>
+        </div>
+
+        {storageError && <p className="home-storage-error" role="status">{storageError}</p>}
+
+        {resumes.length > 0 ? (
+          <div className="resume-list" aria-label="Saved resumes">
+            {resumes.map((item, index) => (
+              <article key={item.id} className="resume-card">
+                <span className="resume-card-icon" aria-hidden="true">▤</span>
+                <span className="resume-card-content">
+                  <span className="resume-card-kicker">RESUME {String(index + 1).padStart(2, '0')}</span>
+                  <button
+                    type="button"
+                    className="resume-card-name"
+                    onClick={() => onOpen(item.id)}
+                    aria-label={`Open ${item.data.name.trim() || 'untitled resume'}`}
+                  >
+                    {item.data.name.trim() || 'Untitled resume'}
+                  </button>
+                  <span className="resume-card-contact">{item.data.email || 'Continue editing your saved resume'}</span>
+                </span>
+                <div className="resume-card-actions" aria-label={`Actions for ${item.data.name.trim() || 'untitled resume'}`}>
+                  <button
+                    type="button"
+                    className="card-action-button"
+                    onClick={() => onOpen(item.id)}
+                    aria-label={`Edit ${item.data.name.trim() || 'untitled resume'}`}
+                    title="Edit resume"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className="card-action-button"
+                    aria-label={`Download ${item.data.name.trim() || 'untitled resume'} (not available yet)`}
+                    title="Download (coming soon)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <path d="m7 10 5 5 5-5" />
+                      <path d="M12 15V3" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className="card-action-button remove-card-action"
+                    onClick={() => onRemove(item.id, item.data.name.trim() || 'Untitled resume')}
+                    aria-label={`Remove ${item.data.name.trim() || 'untitled resume'}`}
+                    title="Remove resume"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M3 6h18" />
+                      <path d="M8 6V4h8v2" />
+                      <path d="m19 6-1 14H6L5 6" />
+                      <path d="M10 11v5M14 11v5" />
+                    </svg>
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <section className="home-empty-state">
+            <span className="empty-state-icon" aria-hidden="true">✧</span>
+            <h2>A fresh start.</h2>
+            <p>Your saved resumes will show up here. Use the button above to open a blank builder.</p>
+            <button type="button" className="secondary-button" onClick={onAdd}>Go to the builder <span aria-hidden="true">→</span></button>
+          </section>
+        )}
+
+        <div className="home-footer-note"><span>✳</span> Your resume data is stored privately in this browser.</div>
+      </main>
+    </div>
+  )
+}
+
+function ResumeBuilder({ resume, isDraft, storageError, onUpdate, onCreate }) {
+  const { resumeId, sectionId } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
-  const currentSection = sections.find((section) => section.path === location.pathname) || sections[0]
-  const activeStep = sections.indexOf(currentSection) + 1
-  const previousSection = sections[activeStep - 2]
-  const nextSection = sections[activeStep]
-  const renderSection = (section) => {
-    if (section.id === 'personal') {
-      return <PersonalPage resume={resume} onChange={updateField} onNext={() => navigate(nextSection.path)} />
-    }
-
-    if (section.id === 'skills') {
-      return (
-        <>
-          <section className="form-section personal-section">
-            <SectionHeading
-              eyebrow="YOUR TOOLKIT"
-              title="Skills"
-              description="What are you good at? Include tools, languages, or strengths."
-              icon={section.icon}
-            />
-            <div className="entry-card">
-              <TextArea
-                label="Skills"
-                name="skills"
-                value={resume.skills}
-                onChange={updateField}
-                placeholder="e.g. Project planning, Figma, Spanish, public speaking"
-              />
-              <span className="field-hint">Separate skills with commas. This section is optional.</span>
-            </div>
-          </section>
-          <PageActions
-            previous={previousSection}
-            isLast
-            onFinish={() => setFinishedPath(location.pathname)}
-          />
-        </>
-      )
-    }
-
-    const config = entryConfigs[section.id]
-    if (!config) {
-      return <Navigate to={sections[0].path} replace />
-    }
-
-    return renderEntryPage(section.id, config.fields.map(([field]) => field))
-  }
+  const [finalizationError, setFinalizationError] = useState('')
+  const currentSection = sections.find((section) => section.id === sectionId)
+  const activeStep = currentSection ? sections.indexOf(currentSection) + 1 : 0
 
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [location.pathname])
 
+  if (!currentSection || !resume) {
+    return <Navigate to="/" replace />
+  }
+
+  const sectionPath = (section) => isDraft
+    ? `/resume/new/${section.id}`
+    : `/resume/${resumeId}/${section.id}`
+  const previousSection = sections[activeStep - 2]
+  const nextSection = sections[activeStep]
+  const previous = previousSection ? { ...previousSection, path: sectionPath(previousSection) } : undefined
+  const next = nextSection ? { ...nextSection, path: sectionPath(nextSection) } : undefined
+
   const updateResume = (getUpdatedResume) => {
-    const updatedResume = getUpdatedResume(resume)
-    setResume(updatedResume)
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedResume))
-      setStorageError('')
-    } catch (error) {
-      console.error('Could not save the resume to this browser.', error)
-      setStorageError('Your changes could not be saved in this browser. Check available storage and privacy settings.')
-    }
-    setFinishedPath('')
+    onUpdate(getUpdatedResume)
+    setFinalizationError('')
   }
 
   const updateField = (event) => {
@@ -433,6 +527,33 @@ function App() {
     }))
   }
 
+  const handleFinish = () => {
+    if (!isDraft) {
+      navigate('/')
+      return
+    }
+
+    const requiredValues = [resume.name, resume.email, resume.phone, resume.address]
+    const emailInput = document.createElement('input')
+    emailInput.type = 'email'
+    emailInput.value = resume.email
+    const hasRequiredDetails = requiredValues.every((value) => value.trim()) && emailInput.checkValidity()
+
+    if (!hasRequiredDetails) {
+      setFinalizationError('Add your name, a valid email address, phone number, and mailing address before saving this resume.')
+      navigate(sectionPath(sections[0]))
+      return
+    }
+
+    const created = onCreate(resume)
+    if (!created) {
+      setFinalizationError('This resume could not be saved. Your draft is still open; please try again.')
+      return
+    }
+
+    navigate('/')
+  }
+
   const entryProps = (section, fields) => ({
     section,
     entries: resume[section],
@@ -441,30 +562,76 @@ function App() {
     onRemove: (index) => removeEntry(section, index),
   })
 
-  const renderEntryPage = (section, fields) => (
-    <>
-      <EntryGroup {...entryProps(section, fields)} />
-      <PageActions
-        previous={previousSection}
-        next={nextSection}
-        isLast={!nextSection}
-        onFinish={() => setFinishedPath(location.pathname)}
-      />
-    </>
-  )
+  const renderSection = () => {
+    if (currentSection.id === 'personal') {
+      return (
+        <PersonalPage
+          resume={resume}
+          onChange={updateField}
+          onNext={() => navigate(next.path)}
+          next={next}
+        />
+      )
+    }
+
+    if (currentSection.id === 'skills') {
+      return (
+        <>
+          <section className="form-section personal-section">
+            <SectionHeading
+              eyebrow="YOUR TOOLKIT"
+              title="Skills"
+              description="What are you good at? Include tools, languages, or strengths."
+              icon={currentSection.icon}
+            />
+            <div className="entry-card">
+              <TextArea
+                label="Skills"
+                name="skills"
+                value={resume.skills}
+                onChange={updateField}
+                placeholder="e.g. Project planning, Figma, Spanish, public speaking"
+              />
+              <span className="field-hint">Separate skills with commas. This section is optional.</span>
+            </div>
+          </section>
+          <PageActions
+            previous={previous}
+            isLast
+            onFinish={handleFinish}
+          />
+        </>
+      )
+    }
+
+    const config = entryConfigs[currentSection.id]
+    if (!config) return <Navigate to="/" replace />
+
+    return (
+      <>
+        <EntryGroup {...entryProps(currentSection.id, config.fields.map(([field]) => field))} />
+        <PageActions
+          previous={previous}
+          next={next}
+          isLast={!next}
+          onFinish={handleFinish}
+        />
+      </>
+    )
+  }
 
   return (
     <div className="app-shell">
       <header className="topbar">
-        <Link to={sections[0].path} className="brand" aria-label="Forme home">
+        <Link to="/" className="brand" aria-label="Forme home">
           <span className="brand-mark">f</span>
           <span>forme<span className="brand-period">.</span></span>
         </Link>
         <div className={`topbar-note${storageError ? ' storage-error' : ''}`}>
           <span className="save-dot" />
-          {storageError || 'Edits save automatically on this device'}
+          {storageError || (isDraft ? 'Temporary blank draft · not saved' : 'Edits save automatically on this device')}
         </div>
-        <Link className="topbar-help" to={sections[0].path}>Need a hand? <span>Start here ↗</span></Link>
+        <Link className="topbar-help" to="/">← <span>My resumes</span></Link>
       </header>
 
       <main className="workspace">
@@ -483,7 +650,7 @@ function App() {
               <NavLink
                 key={section.id}
                 className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-                to={section.path}
+                to={sectionPath(section)}
               >
                 <span className="nav-number">{section.number}</span>
                 <span className="nav-title">{section.title}</span>
@@ -501,36 +668,144 @@ function App() {
         <div className="form-column">
           <div className="page-heading">
             <div>
-              <div className="breadcrumb">MY RESUME <span>/</span> {currentSection.title.toUpperCase()}</div>
+              <div className="breadcrumb"><Link to="/">MY RESUMES</Link> <span>/</span> {currentSection.title.toUpperCase()}</div>
               <h2>{currentSection.heading}<span className="heading-period">.</span></h2>
               <p>{currentSection.description}</p>
             </div>
             <span className="step-pill"><span /> STEP {activeStep} OF {sections.length}</span>
           </div>
 
-          {finishedPath === location.pathname && (
-            <div className="success-message" role="status">
-              <span aria-hidden="true">✓</span>
-              You’re all set for now. Your changes are saved on this device.
+          {finalizationError && (
+            <div className="finalization-error" role="alert">
+              <span>{finalizationError}</span>
+              {location.pathname !== sectionPath(sections[0]) && (
+                <Link to={sectionPath(sections[0])}>Go to personal details</Link>
+              )}
             </div>
           )}
 
-          <Routes>
-            {sections.map((section) => (
-              <Route
-                key={section.id}
-                path={section.path}
-                element={renderSection(section)}
-              />
-            ))}
-            <Route path="/" element={<Navigate to={sections[0].path} replace />} />
-            <Route path="*" element={<Navigate to={sections[0].path} replace />} />
-          </Routes>
+          {renderSection()}
         </div>
 
         <ResumePreview resume={resume} />
       </main>
     </div>
+  )
+}
+
+function App() {
+  const [savedState] = useState(readSavedResumes)
+  const [resumes, setResumes] = useState(savedState.resumes)
+  const [draft, setDraft] = useState(makeInitialResume)
+  const [storageError, setStorageError] = useState(savedState.error)
+  const navigate = useNavigate()
+
+  const saveResumes = (nextResumes) => {
+    setResumes(nextResumes)
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextResumes))
+      setStorageError('')
+    } catch (error) {
+      console.error('Could not save resumes to this browser.', error)
+      setStorageError('Your changes could not be saved in this browser. Check available storage and privacy settings.')
+    }
+  }
+
+  const updateSavedResume = (resumeId, getUpdatedResume) => {
+    const nextResumes = resumes.map((item) => item.id === resumeId
+      ? { ...item, data: getUpdatedResume(item.data) }
+      : item)
+    saveResumes(nextResumes)
+  }
+
+  const createResume = (resume) => {
+    const id = window.crypto?.randomUUID
+      ? `resume-${window.crypto.randomUUID()}`
+      : `resume-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const nextResumes = [...resumes, { id, data: normalizeResume(resume) }]
+
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextResumes))
+      setResumes(nextResumes)
+      setStorageError('')
+      return true
+    } catch (error) {
+      console.error('Could not save the completed resume to this browser.', error)
+      setStorageError('Your resume could not be saved in this browser. Check available storage and privacy settings.')
+      return false
+    }
+  }
+
+  const removeResume = (resumeId, resumeName) => {
+    if (!window.confirm(`Remove "${resumeName}" from your resumes? This cannot be undone.`)) {
+      return
+    }
+
+    const nextResumes = resumes.filter((item) => item.id !== resumeId)
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextResumes))
+      setResumes(nextResumes)
+      setStorageError('')
+    } catch (error) {
+      console.error('Could not remove the resume from this browser.', error)
+      setStorageError('This resume could not be removed because the change could not be saved. Please try again.')
+    }
+  }
+
+  const openNewDraft = () => {
+    setDraft(makeInitialResume())
+    navigate('/resume/new/personal')
+  }
+
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={(
+          <ResumeHome
+            resumes={resumes}
+            storageError={storageError}
+            onAdd={openNewDraft}
+            onOpen={(resumeId) => navigate(`/resume/${resumeId}/personal`)}
+            onRemove={removeResume}
+          />
+        )}
+      />
+      <Route
+        path="/resume/new/:sectionId"
+        element={(
+          <ResumeBuilder
+            resume={draft}
+            isDraft
+            storageError={storageError}
+            onUpdate={(getUpdatedResume) => setDraft((current) => getUpdatedResume(current))}
+            onCreate={createResume}
+          />
+        )}
+      />
+      <Route
+        path="/resume/:resumeId/:sectionId"
+        element={<SavedResumeRoute resumes={resumes} storageError={storageError} onUpdate={updateSavedResume} />}
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}
+
+function SavedResumeRoute({ resumes, storageError, onUpdate }) {
+  const { resumeId } = useParams()
+  const resumeItem = resumes.find((item) => item.id === resumeId)
+  if (!resumeItem) return <Navigate to="/" replace />
+
+  return (
+    <ResumeBuilder
+      key={resumeItem.id}
+      resume={resumeItem.data}
+      resumeId={resumeItem.id}
+      isDraft={false}
+      storageError={storageError}
+      onUpdate={(getUpdatedResume) => onUpdate(resumeItem.id, getUpdatedResume)}
+    />
   )
 }
 
