@@ -257,6 +257,21 @@
   color: #426c86;
 }
 
+.card-action-button:disabled {
+  cursor: wait;
+  opacity: .58;
+}
+
+.card-action-button.downloading svg {
+  animation: download-pulse 800ms ease-in-out infinite alternate;
+}
+
+@keyframes download-pulse {
+  to {
+    opacity: .35;
+  }
+}
+
 .card-action-button svg {
   width: 15px;
   height: 15px;
@@ -340,6 +355,131 @@
   margin-top: 15px;
   color: #9a685d;
   font-size: 10px;
+}
+
+.home-download-error {
+  margin-top: 15px;
+  padding: 10px 12px;
+  border: 1px solid #eed8d0;
+  border-radius: 6px;
+  background: #fff8f5;
+  color: #946a5d;
+  font-size: 10px;
+}
+
+.export-canvas {
+  position: fixed;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  width: 816px;
+  transform: translateX(-200%);
+  pointer-events: none;
+}
+
+.export-resume {
+  width: 816px;
+  min-height: 1056px;
+  box-sizing: border-box;
+  padding: 72px 76px;
+  background: #fff;
+  color: #344b5e;
+  font-family: Arial, Helvetica, sans-serif;
+  text-align: left;
+}
+
+.export-header {
+  padding-bottom: 22px;
+  border-bottom: 2px solid #a6cbdc;
+}
+
+.export-header h1 {
+  margin: 0 0 12px;
+  color: #2e465a;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 36px;
+  font-weight: 400;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.export-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  color: #61798a;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.export-section {
+  margin-top: 25px;
+  break-inside: avoid;
+}
+
+.export-section h2 {
+  margin: 0 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #dfe9ee;
+  color: #66899d;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.export-summary,
+.export-entry-details {
+  margin: 0;
+  color: #52697a;
+  font-size: 12px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.export-entry {
+  margin-top: 14px;
+  break-inside: avoid;
+}
+
+.export-entry:first-of-type {
+  margin-top: 0;
+}
+
+.export-entry-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.export-entry-heading h3 {
+  margin: 0;
+  color: #344b5e;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.export-entry-subtitle,
+.export-entry-meta {
+  margin: 3px 0 0;
+  color: #718795;
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.export-entry-meta {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.export-entry-details {
+  margin-top: 5px;
 }
 
 .home-footer-note {

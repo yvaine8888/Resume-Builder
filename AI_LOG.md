@@ -81,3 +81,18 @@ Verify lint/build and make an HTTP request to confirm the endpoint responds with
 It seemed good to me. I may need to separate the frontend from backend soon.
 # Verification:
 I checked on the health endpoint and it returned healthy (npm run build).
+
+
+
+## Eighth Prompt
+# What I asked for:
+Implement the download function where it would take the reume and compile into an image to download.
+# What it produced:
+Implement the card Download action as a complete PNG resume export, not a capture of the existing partial preview.
+Render all populated resume sections in a print-sized layout, then generate one high-resolution full-length image.
+Download with a sanitized filename based on the resume name; show errors instead of silently failing.
+Keep PDF export and server-side processing out of scope; preserve existing resume data and editing behavior.
+# Fixed or Rejected:
+It seemed good to me. At first I wanted pdf but to explore my options I asked about the differences in doing pdf or image and image seemed easier.
+# Verification:
+I could downlaod the resume as an image.

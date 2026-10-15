@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { toPng } from 'html-to-image'
 import sections from './data.json'
 import './App.css'
 
@@ -367,7 +368,147 @@ function ResumePreview({ resume }) {
   )
 }
 
+function ExportResume({ resume, nodeRef }) {
+  const resumeSections = [
+    {
+      id: 'education',
+      title: 'Education',
+      entries: resume.education
+        .filter((entry) => Object.values(entry).some((value) => value.trim()))
+        .map((entry) => ({
+          title: entry.school || entry.degree,
+          subtitle: entry.school && entry.degree ? entry.degree : '',
+          meta: [entry.location, entry.dates].filter(Boolean).join(' · '),
+          details: entry.details,
+        })),
+    },
+    {
+      id: 'experience',
+      title: 'Experience',
+      entries: resume.experience
+        .filter((entry) => Object.values(entry).some((value) => value.trim()))
+        .map((entry) => ({
+          title: entry.role || entry.organization,
+          subtitle: entry.role && entry.organization ? entry.organization : '',
+          meta: [entry.location, entry.dates].filter(Boolean).join(' · '),
+          details: entry.details,
+        })),
+    },
+    {
+      id: 'activities',
+      title: 'Activities & Leadership',
+      entries: resume.activities
+        .filter((entry) => Object.values(entry).some((value) => value.trim()))
+        .map((entry) => ({
+          title: entry.name || entry.role,
+          subtitle: entry.name && entry.role ? entry.role : '',
+          meta: entry.dates,
+          details: entry.details,
+        })),
+    },
+    {
+      id: 'awards',
+      title: 'Awards & Recognition',
+      entries: resume.awards
+        .filter((entry) => Object.values(entry).some((value) => value.trim()))
+        .map((entry) => ({
+          title: entry.name || entry.organization,
+          subtitle: entry.name && entry.organization ? entry.organization : '',
+          meta: entry.date,
+          details: entry.details,
+        })),
+    },
+  ].filter((section) => section.entries.length > 0)
+
+  return (
+    <article className="export-resume" ref={nodeRef}>
+      <header className="export-header">
+        <h1>{resume.name || 'Resume'}</h1>
+        <div className="export-contact">
+          {[resume.address, resume.phone, resume.email].filter(Boolean).map((detail) => (
+            <span key={detail}>{detail}</span>
+          ))}
+        </div>
+      </header>
+
+      {resume.summary.trim() && (
+        <section className="export-section">
+          <h2>Profile</h2>
+          <p className="export-summary">{resume.summary}</p>
+        </section>
+      )}
+
+      {resumeSections.map((section) => (
+        <section className="export-section" key={section.id}>
+          <h2>{section.title}</h2>
+          {section.entries.map((entry, index) => (
+            <div className="export-entry" key={`${section.id}-${index}`}>
+              <div className="export-entry-heading">
+                <div>
+                  <h3>{entry.title}</h3>
+                  {entry.subtitle && <p className="export-entry-subtitle">{entry.subtitle}</p>}
+                </div>
+                {entry.meta && <span className="export-entry-meta">{entry.meta}</span>}
+              </div>
+              {entry.details && <p className="export-entry-details">{entry.details}</p>}
+            </div>
+          ))}
+        </section>
+      ))}
+
+      {resume.skills.trim() && (
+        <section className="export-section">
+          <h2>Skills</h2>
+          <p className="export-summary">{resume.skills}</p>
+        </section>
+      )}
+    </article>
+  )
+}
+
+function safeResumeFilename(name) {
+  const safeName = name
+    .normalize('NFKD')
+    .replace(/[<>:"/\\|?*]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^[.-]+|[.-]+$/g, '')
+
+  return `${safeName || 'Resume'}.png`
+}
+
 function ResumeHome({ resumes, storageError, onAdd, onOpen, onRemove }) {
+  const exportNodes = useRef({})
+  const [downloadingId, setDownloadingId] = useState('')
+  const [downloadError, setDownloadError] = useState('')
+
+  const downloadResume = async (item) => {
+    const exportNode = exportNodes.current[item.id]
+    if (!exportNode) {
+      setDownloadError('The resume image could not be prepared. Please try again.')
+      return
+    }
+
+    setDownloadingId(item.id)
+    setDownloadError('')
+    try {
+      const dataUrl = await toPng(exportNode, {
+        backgroundColor: '#ffffff',
+        cacheBust: true,
+        pixelRatio: 2,
+      })
+      const downloadLink = document.createElement('a')
+      downloadLink.download = safeResumeFilename(item.data.name)
+      downloadLink.href = dataUrl
+      downloadLink.click()
+    } catch (error) {
+      console.error('Could not export the resume as a PNG image.', error)
+      setDownloadError('The resume image could not be downloaded. Please try again.')
+    } finally {
+      setDownloadingId('')
+    }
+  }
+
   return (
     <div className="home-shell">
       <header className="topbar">
@@ -394,6 +535,7 @@ function ResumeHome({ resumes, storageError, onAdd, onOpen, onRemove }) {
         </div>
 
         {storageError && <p className="home-storage-error" role="status">{storageError}</p>}
+        {downloadError && <p className="home-download-error" role="alert">{downloadError}</p>}
 
         {resumes.length > 0 ? (
           <div className="resume-list" aria-label="Saved resumes">
@@ -427,9 +569,12 @@ function ResumeHome({ resumes, storageError, onAdd, onOpen, onRemove }) {
                   </button>
                   <button
                     type="button"
-                    className="card-action-button"
-                    aria-label={`Download ${item.data.name.trim() || 'untitled resume'} (not available yet)`}
-                    title="Download (coming soon)"
+                    className={`card-action-button${downloadingId === item.id ? ' downloading' : ''}`}
+                    onClick={() => downloadResume(item)}
+                    disabled={downloadingId !== ''}
+                    aria-label={`${downloadingId === item.id ? 'Preparing download for' : 'Download'} ${item.data.name.trim() || 'untitled resume'} as PNG`}
+                    aria-busy={downloadingId === item.id}
+                    title={downloadingId === item.id ? 'Preparing PNG' : 'Download PNG'}
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -466,6 +611,21 @@ function ResumeHome({ resumes, storageError, onAdd, onOpen, onRemove }) {
 
         <div className="home-footer-note"><span>✳</span> Your resume data is stored privately in this browser.</div>
       </main>
+      <div className="export-canvas" aria-hidden="true">
+        {resumes.map((item) => (
+          <ExportResume
+            key={item.id}
+            resume={item.data}
+            nodeRef={(node) => {
+              if (node) {
+                exportNodes.current[item.id] = node
+              } else {
+                delete exportNodes.current[item.id]
+              }
+            }}
+          />
+        ))}
+      </div>
     </div>
   )
 }
